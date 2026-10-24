@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ArchLens
+Comment=Explain Arch Linux package dependencies and removal impact
+Exec=archlens
+Icon=archlens
+Terminal=false
+Categories=System;Utility;

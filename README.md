@@ -1,8 +1,8 @@
 # ArchLens
 
-ArchLens is an Arch Linux package dependency analyzer. The current milestone
-adds a standalone PySide6 window with package search, sorting, orphan analysis,
-and package details. Core code has no Qt dependency.
+ArchLens is an Arch Linux package dependency analyzer. It provides a standalone
+PySide6 window with package search, sorting, orphan analysis, removal estimates,
+cache inspection, and package details. Core code has no Qt dependency.
 
 ## Development
 
@@ -39,9 +39,22 @@ python -m archlens
 The application reads the local pacman database in the background and does not
 depend on caelestia-shell.
 
-The `closure` and `freed` results are estimates. Before any future removal
-feature, pacman's dry-run result must override them and an explicit confirmation
-must still be required. This milestone never runs a modifying pacman command.
+The `closure` and `freed` results are estimates. The GUI always performs a
+pacman dry-run before removal and requires explicit confirmation. The app never
+runs pacman as root; only the confirmed child process uses `pkexec`.
+
+## Desktop installation
+
+For a local editable install, the `archlens` command is created by pip:
+
+```sh
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/archlens
+```
+
+The desktop entry template is in `data/archlens.desktop`. Copy it and the icon
+to `/usr/share/applications` and `/usr/share/icons/hicolor/scalable/apps` when
+installing from a package; development runs do not require system installation.
 
 See [docs/PRD.md](docs/PRD.md), [docs/Architecture.md](docs/Architecture.md),
 and [docs/pacman-verification.md](docs/pacman-verification.md) for the source
