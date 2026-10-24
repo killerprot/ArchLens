@@ -41,6 +41,9 @@ TEXT = {
     "clear_cache": {"en": "Keep latest 2 versions", "ru": "Оставить последние 2 версии"},
     "cache_cleanup": {"en": "Cache cleanup", "ru": "Очистка кэша"},
     "confirm_cache_cleanup": {"en": "Remove cached versions except the latest 2?", "ru": "Удалить версии из кэша, кроме двух последних?"},
+    "export": {"en": "Export report", "ru": "Экспорт отчёта"},
+    "export_filter": {"en": "Reports (*.json *.md)", "ru": "Отчёты (*.json *.md)"},
+    "exported": {"en": "Report exported: {path}", "ru": "Отчёт экспортирован: {path}"},
 }
 
 

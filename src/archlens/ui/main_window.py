@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import QSortFilterProxyModel, Qt, QThreadPool
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -26,6 +27,7 @@ from archlens.core.cache_analysis import CachedPackage, cache_total
 from archlens.core.graph import DependencyGraph
 from archlens.core.models import Package
 from archlens.core.protection import protected_packages
+from archlens.core.report import write_report
 from archlens.infra.config import load_config
 from archlens.infra.pacman_cli import DryRunResult
 from archlens.strings import LANGUAGES, text
@@ -145,6 +147,9 @@ class MainWindow(QMainWindow):
         toolbar = QWidget()
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.addStretch()
+        self.export_button = QPushButton()
+        self.export_button.clicked.connect(self._export_report)
+        toolbar_layout.addWidget(self.export_button)
         toolbar_layout.addWidget(self.language_combo)
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -232,6 +237,7 @@ class MainWindow(QMainWindow):
         self.orphan_search.setPlaceholderText(text("search", self.language))
         self.cache_search.setPlaceholderText(text("search", self.language))
         self.remove_button.setText(text("remove_selected", self.language))
+        self.export_button.setText(text("export", self.language))
         self.cache_cleanup_button.setText(text("clear_cache", self.language))
         self.language_combo.setToolTip(text("language", self.language))
         self.package_model.set_language(self.language)
@@ -279,6 +285,20 @@ class MainWindow(QMainWindow):
     def _cache_cleanup_failed(self, error: str) -> None:
         self.cache_cleanup_button.setEnabled(True)
         self.statusBar().showMessage(error)
+
+    def _export_report(self) -> None:
+        if self.graph is None:
+            return
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            text("export", self.language),
+            "archlens-report.json",
+            text("export_filter", self.language),
+        )
+        if not path:
+            return
+        write_report(path, self.graph, self.package_model.freed, self.estimate_statuses)
+        self.statusBar().showMessage(text("exported", self.language, path=path))
 
     def _request_removal(self) -> None:
         if self.selected_package is None:
