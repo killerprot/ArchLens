@@ -1,0 +1,17 @@
+%NAME%
+provider-b
+
+%VERSION%
+1.0
+
+%DESC%
+Second virtual provider
+
+%SIZE%
+60
+
+%INSTALLDATE%
+1700000005
+
+%REASON%
+1

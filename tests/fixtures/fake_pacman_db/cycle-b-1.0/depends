@@ -1,0 +1,5 @@
+%DEPENDS%
+cycle-a
+
+%PROVIDES%
+cycle-b

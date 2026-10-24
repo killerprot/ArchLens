@@ -1,0 +1,8 @@
+%DEPENDS%
+middle
+
+%OPTDEPENDS%
+optional-orphan: extra feature
+
+%PROVIDES%
+explicit-app
