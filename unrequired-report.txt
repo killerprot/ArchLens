@@ -1,0 +1,12 @@
+ArchLens unrequired verification
+
+-Qdt
+  ours only: []
+  pacman only: []
+  equal: True
+
+-Qdtt
+  ours only: []
+  pacman only: []
+  equal: True
+

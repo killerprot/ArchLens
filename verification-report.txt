@@ -1,0 +1,65 @@
+ArchLens closure verification
+pacman command: pacman -Rs --print (exact -Rns --print is unavailable; see docs/pacman-verification.md)
+
+[7zip]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['an-anime-game-launcher', 'goverlay', 'lutris'])
+[a52dec]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['gst-plugins-ugly', 'vlc-plugin-a52dec'])
+[aalib]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['gimp', 'vlc-plugin-aalib'])
+[abseil-cpp]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['android-tools', 'apache-orc', 'arrow', 'grpc', 'hyprtoolkit', 'nodejs', 'opencv', 'protobuf', 're2', 'sentencepiece', 'telegram-desktop', 'vlc-plugin-chromecast', 'webrtc-audio-processing-1'])
+[accountsservice]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['libmalcontent'])
+[acl]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['coreutils', 'cups', 'ddcutil', 'gettext', 'kio', 'libarchive', 'libisofs', 'logrotate', 'rsync', 'sed', 'shadow', 'snapper', 'systemd', 'tar', 'udisks2', 'vim'])
+[ada]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['nodejs', 'telegram-desktop'])
+[adw-gtk-theme]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['cachyos-hypr-noctalia'])
+[adwaita-cursors]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['adwaita-icon-theme'])
+[adwaita-fonts]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['gsettings-desktop-schemas', 'gtk3', 'gtk4', 'plymouth'])
+[adwaita-icon-theme]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['gtk3', 'gtk4'])
+[adwaita-icon-theme-legacy]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['adwaita-icon-theme'])
+[aircrack-ng]
+  ours: ['aircrack-ng', 'net-tools', 'wireless_tools']
+  pacman: ['aircrack-ng', 'net-tools', 'wireless_tools']
+  extra packages in ours: []
+  missing in ours: []
+  blocked-vs-not: []
+  likely cause: virtual-provider ambiguity, ignored version constraints, or pacman's transaction/provider selection
+[alacritty]
+  ours: ['alacritty']
+  pacman: ['alacritty']
+  extra packages in ours: []
+  missing in ours: []
+  blocked-vs-not: []
+  likely cause: virtual-provider ambiguity, ignored version constraints, or pacman's transaction/provider selection
+[alsa-card-profiles]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['pipewire-audio'])
+[alsa-firmware]
+  ours: ['alsa-firmware']
+  pacman: ['alsa-firmware']
+  extra packages in ours: []
+  missing in ours: []
+  blocked-vs-not: []
+  likely cause: virtual-provider ambiguity, ignored version constraints, or pacman's transaction/provider selection
+[alsa-lib]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['alsa-plugins', 'alsa-tools', 'alsa-utils', 'bluez', 'chatgpt-desktop', 'chromium', 'claude-desktop', 'ffmpeg', 'ffmpeg4.4', 'firefox', 'fluidsynth', 'freerdp', 'google-chrome', 'gst-plugins-base', 'itch-bin', 'lib32-alsa-lib', 'libcanberra', 'libcava', 'lirc', 'mpg123', 'mpv', 'pipewire-audio', 'portaudio', 'qt6-webengine', 'sndio', 'spotify', 'vlc-plugin-alsa', 'vlc-plugin-udev', 'vscodium-bin', 'wildmidi', 'winboat', 'zed'])
+[alsa-plugins]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['cachyos-gaming-meta', 'lib32-alsa-plugins'])
+[alsa-tools]
+  ours: ['alsa-tools']
+  pacman: ['alsa-tools']
+  extra packages in ours: []
+  missing in ours: []
+  blocked-vs-not: []
+  likely cause: virtual-provider ambiguity, ignored version constraints, or pacman's transaction/provider selection
+[alsa-topology-conf]
+  blocked-vs-not: match (pacman rejected target and our hard-dependency check found ['alsa-lib'])
+
+Mismatching package cases: 0/20
