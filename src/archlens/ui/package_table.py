@@ -93,6 +93,12 @@ class PackageTableModel(QAbstractTableModel):
                 package.install_date.astimezone().strftime("%Y-%m-%d"),
             )
             return values[index.column()]
+        if role == Qt.ToolTipRole and index.column() == 3:
+            status = self.freed_status.get(package.name)
+            if status == "protected_status":
+                return text("protected_explain", self.language)
+            if status == "blocked_status":
+                return text("blocked_explain", self.language)
         if role == Qt.UserRole + 1:
             values = (
                 package.name,

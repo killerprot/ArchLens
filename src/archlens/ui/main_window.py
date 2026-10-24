@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from archlens.app.cache import CacheTask
+from archlens.app.cache import CacheCleanupTask, CacheTask
 from archlens.app.removal import DryRunTask, RemovalTask
 from archlens.app.workers import LoadPackagesTask, RemovalEstimateTask
 from archlens.core.analysis import orphans
@@ -57,7 +57,9 @@ class MainWindow(QMainWindow):
         self.dry_run_task: DryRunTask | None = None
         self.removal_task: RemovalTask | None = None
         self.cache_task: CacheTask | None = None
+        self.cache_cleanup_task: CacheCleanupTask | None = None
         self.estimate_task: RemovalEstimateTask | None = None
+        self.estimate_statuses: dict[str, str] = {}
         self.detail = PackageDetail()
         self.detail.setObjectName("detailPanel")
         self.tabs = QTabWidget()
@@ -127,10 +129,13 @@ class MainWindow(QMainWindow):
         self.cache_search.textChanged.connect(self.cache_proxy.setFilterFixedString)
         cache_layout.addWidget(self.cache_search)
         self.cache_summary = QLabel()
+        self.cache_cleanup_button = QPushButton()
+        self.cache_cleanup_button.clicked.connect(self._request_cache_cleanup)
         self.cache_view = QTableView()
         self.cache_view.setModel(self.cache_proxy)
         self.cache_view.horizontalHeader().setStretchLastSection(True)
         cache_layout.addWidget(self.cache_summary)
+        cache_layout.addWidget(self.cache_cleanup_button)
         cache_layout.addWidget(self.cache_view)
         self.tabs.addTab(cache_page, "")
 
@@ -172,8 +177,11 @@ class MainWindow(QMainWindow):
         self.thread_pool.start(task)
 
     def _estimates_loaded(self, estimates: dict[str, int], statuses: dict[str, str]) -> None:
+        self.estimate_statuses = statuses
         self.package_model.set_estimates(estimates, statuses)
         self.orphan_model.set_estimates(estimates, statuses)
+        if self.graph is not None:
+            self._update_orphan_summary(orphans(self.graph))
 
     def _load_failed(self, error: str) -> None:
         self.statusBar().showMessage(text("load_error", self.language, error=error))
@@ -194,14 +202,20 @@ class MainWindow(QMainWindow):
         self._retranslate()
 
     def _update_orphan_summary(self, orphan_items) -> None:
-        total = sum(item.package.installed_size for item in orphan_items if not item.optionally_required)
         optional = sum(1 for item in orphan_items if item.optionally_required)
+        safe_items = [
+            item
+            for item in orphan_items
+            if not item.optionally_required and item.package.name not in self.estimate_statuses
+        ]
+        total = sum(item.package.installed_size for item in safe_items)
         self.orphan_summary.setText(
             text(
                 "orphans_total",
                 self.language,
                 count=len(orphan_items),
                 optional=optional,
+                safe=len(safe_items),
                 size=format_size(total),
             )
         )
@@ -215,6 +229,7 @@ class MainWindow(QMainWindow):
         self.orphan_search.setPlaceholderText(text("search", self.language))
         self.cache_search.setPlaceholderText(text("search", self.language))
         self.remove_button.setText(text("remove_selected", self.language))
+        self.cache_cleanup_button.setText(text("clear_cache", self.language))
         self.language_combo.setToolTip(text("language", self.language))
         self.package_model.set_language(self.language)
         self.orphan_model.set_language(self.language)
@@ -238,6 +253,29 @@ class MainWindow(QMainWindow):
 
     def _cache_failed(self, error: str) -> None:
         self.cache_summary.setText(error)
+
+    def _request_cache_cleanup(self) -> None:
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle(text("cache_cleanup", self.language))
+        dialog.setText(text("confirm_cache_cleanup", self.language))
+        dialog.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        dialog.setDefaultButton(QMessageBox.StandardButton.No)
+        if dialog.exec() != QMessageBox.StandardButton.Yes:
+            return
+        self.cache_cleanup_button.setEnabled(False)
+        task = CacheCleanupTask(keep_versions=2)
+        self.cache_cleanup_task = task
+        task.signals.completed.connect(self._cache_cleanup_done)
+        task.signals.failed.connect(self._cache_cleanup_failed)
+        self.thread_pool.start(task)
+
+    def _cache_cleanup_done(self, _result) -> None:
+        self.cache_cleanup_button.setEnabled(True)
+        self._scan_cache()
+
+    def _cache_cleanup_failed(self, error: str) -> None:
+        self.cache_cleanup_button.setEnabled(True)
+        self.statusBar().showMessage(error)
 
     def _request_removal(self) -> None:
         if self.selected_package is None:
