@@ -66,6 +66,20 @@ The script creates or updates `.venv`, installs ArchLens, puts the launcher in
 The desktop entry template is in `data/archlens.desktop`; package maintainers
 can install it and the icon system-wide instead.
 
+## Build from GitHub
+
+On Arch Linux, the AUR-style package can be built directly from the repository:
+
+```sh
+git clone https://github.com/killerprot/ArchLens.git
+cd ArchLens
+makepkg -si
+```
+
+This uses `PKGBUILD`, installs runtime dependencies through pacman, and places
+the application and desktop files system-wide. The package build needs
+`git`, `python-build`, and `python-installer` as make dependencies.
+
 See [docs/PRD.md](docs/PRD.md), [docs/Architecture.md](docs/Architecture.md),
 and [docs/pacman-verification.md](docs/pacman-verification.md) for the source
 specification and verified command behavior.

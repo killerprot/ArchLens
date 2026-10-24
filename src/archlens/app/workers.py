@@ -33,9 +33,10 @@ class EstimateSignals(QObject):
 
 
 class RemovalEstimateTask(QRunnable):
-    def __init__(self, graph: DependencyGraph) -> None:
+    def __init__(self, graph: DependencyGraph, protected: set[str] | None = None) -> None:
         super().__init__()
         self.graph = graph
+        self.protected = protected or set()
         self.signals = EstimateSignals()
 
     @Slot()
@@ -43,7 +44,7 @@ class RemovalEstimateTask(QRunnable):
         try:
             estimates: dict[str, int] = {}
             statuses: dict[str, str] = {}
-            protected = protected_packages()
+            protected = protected_packages(self.protected)
             blocked = {
                 next(iter(providers))
                 for (consumer, _raw), providers in self.graph.requirements.items()

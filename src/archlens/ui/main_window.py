@@ -26,6 +26,7 @@ from archlens.core.cache_analysis import CachedPackage, cache_total
 from archlens.core.graph import DependencyGraph
 from archlens.core.models import Package
 from archlens.core.protection import protected_packages
+from archlens.infra.config import load_config
 from archlens.infra.pacman_cli import DryRunResult
 from archlens.strings import LANGUAGES, text
 from archlens.ui.cache_view import CacheTableModel
@@ -37,6 +38,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.language = "en"
+        self.config = load_config()
+        self.protected_names = protected_packages(set(self.config.protected))
         self.setWindowTitle(text("app_title"))
         self.resize(1100, 700)
         self.setStyleSheet(
@@ -170,7 +173,7 @@ class MainWindow(QMainWindow):
         self.orphan_view.resizeColumnsToContents()
         self._update_orphan_summary(orphan_items)
         self.statusBar().showMessage(text("packages_loaded", self.language, count=len(packages)))
-        task = RemovalEstimateTask(graph)
+        task = RemovalEstimateTask(graph, set(self.config.protected))
         self.estimate_task = task
         task.signals.completed.connect(self._estimates_loaded)
         task.signals.failed.connect(self._load_failed)
@@ -194,7 +197,7 @@ class MainWindow(QMainWindow):
         package = model.data(source_index, Qt.UserRole)
         if isinstance(package, Package):
             self.selected_package = package
-            self.remove_button.setEnabled(package.name not in protected_packages())
+            self.remove_button.setEnabled(package.name not in self.protected_names)
             self.detail.show_package(package, self.graph)
 
     def _language_changed(self, index: int) -> None:
@@ -263,7 +266,7 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QMessageBox.StandardButton.Yes:
             return
         self.cache_cleanup_button.setEnabled(False)
-        task = CacheCleanupTask(keep_versions=2)
+        task = CacheCleanupTask(keep_versions=self.config.keep_versions)
         self.cache_cleanup_task = task
         task.signals.completed.connect(self._cache_cleanup_done)
         task.signals.failed.connect(self._cache_cleanup_failed)
