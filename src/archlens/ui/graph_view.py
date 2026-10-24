@@ -65,6 +65,15 @@ class PackageNode(QGraphicsObject):
     def boundingRect(self) -> QRectF:
         return QRectF(-100, -30, 200, 60)
 
+    def connection_point(self, target: QPointF) -> QPointF:
+        """Return the point where an edge should meet this node's border."""
+        delta = target - self.pos()
+        if delta.isNull():
+            return self.pos()
+        half_width, half_height = 98.0, 28.0
+        scale = min(half_width / abs(delta.x()) if delta.x() else float("inf"), half_height / abs(delta.y()) if delta.y() else float("inf"))
+        return self.pos() + delta * scale
+
     def set_selected(self, selected: bool) -> None:
         if self._selected == selected:
             return
@@ -184,28 +193,40 @@ class GraphView(QWidget):
         self._add_node(package.name, center, QColor("#2f6fed"), selected=True)
         dependencies = sorted(graph.deps.get(package.name, ()))
         required_by = sorted(graph.rdeps.get(package.name, ()))
-        for index, name in enumerate(dependencies):
-            self._add_node(
-                name,
-                QPointF(-300, (index - (len(dependencies) - 1) / 2) * 90),
-                QColor("#2c8c68"),
-            )
-        for index, name in enumerate(required_by):
-            self._add_node(
-                name,
-                QPointF(300, (index - (len(required_by) - 1) / 2) * 90),
-                QColor("#8b5fbf"),
-            )
+        for name, position in self._side_positions(dependencies, side=-1):
+            self._add_node(name, position, QColor("#2c8c68"))
+        for name, position in self._side_positions(required_by, side=1):
+            self._add_node(name, position, QColor("#8b5fbf"))
         for name in dependencies:
-            self._add_edge(self._nodes[name].pos(), center)
+            self._add_edge(
+                self._nodes[name].connection_point(center),
+                self._nodes[package.name].connection_point(self._nodes[name].pos()),
+            )
         for name in required_by:
-            self._add_edge(center, self._nodes[name].pos())
+            self._add_edge(
+                self._nodes[package.name].connection_point(self._nodes[name].pos()),
+                self._nodes[name].connection_point(center),
+            )
         for node in self._nodes.values():
             self.scene.addItem(node)
         content_rect = self.scene.itemsBoundingRect().adjusted(-90, -90, 90, 90)
         self.view.fitInView(content_rect, Qt.AspectRatioMode.KeepAspectRatio)
         self._animate_graph(center)
         self._rebuilding = False
+
+    def _side_positions(self, names: list[str], side: int) -> list[tuple[str, QPointF]]:
+        """Lay out a side in balanced columns instead of one tall dependency strip."""
+        max_rows = 12
+        row_gap = 82
+        column_gap = 230
+        positions: list[tuple[str, QPointF]] = []
+        for index, name in enumerate(names):
+            column, row = divmod(index, max_rows)
+            rows_in_column = min(max_rows, len(names) - column * max_rows)
+            x = side * (300 + column * column_gap)
+            y = (row - (rows_in_column - 1) / 2) * row_gap
+            positions.append((name, QPointF(x, y)))
+        return positions
 
     def _animate_graph(self, center: QPointF) -> None:
         animation = QParallelAnimationGroup(self)
