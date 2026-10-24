@@ -112,7 +112,9 @@ class DependencyEdge(QGraphicsPathItem):
     def paint(self, painter: QPainter, _option, _widget=None) -> None:
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QPen(QColor("#68728a"), 1.5))
-        painter.setBrush(QBrush(QColor("#68728a")))
+        # An open path is implicitly closed when filled, producing large wedges
+        # between distant nodes. The edge body must remain stroke-only.
+        painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         painter.drawPath(self.path())
 
         dx = self.end.x() - (self.end.x() + self.start.x()) / 2
@@ -120,6 +122,7 @@ class DependencyEdge(QGraphicsPathItem):
         size = 8
         left = self.end - QPointF(math.cos(angle - math.pi / 6) * size, math.sin(angle - math.pi / 6) * size)
         right = self.end - QPointF(math.cos(angle + math.pi / 6) * size, math.sin(angle + math.pi / 6) * size)
+        painter.setBrush(QBrush(QColor("#68728a")))
         painter.drawPolygon(QPolygonF((self.end, left, right)))
 
 
