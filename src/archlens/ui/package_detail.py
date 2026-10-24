@@ -15,7 +15,12 @@ class PackageDetail(QWidget):
         self.package: Package | None = None
         self.graph: DependencyGraph | None = None
         self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(18, 16, 18, 16)
+        self.layout.setSpacing(10)
         self.labels = [QLabel(text("no_selection")) for _ in range(5)]
+        self.labels[0].setObjectName("detailTitle")
+        for label in self.labels[1:]:
+            label.setObjectName("detailItem")
         for label in self.labels:
             label.setWordWrap(True)
             self.layout.addWidget(label)

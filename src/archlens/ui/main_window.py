@@ -47,12 +47,50 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setStyleSheet(
             """
-            QMainWindow { background: palette(window); }
-            QLineEdit, QComboBox { padding: 6px; border-radius: 5px; }
-            QTableView { alternate-background-color: palette(alternate-base); }
-            QHeaderView::section { padding: 6px; font-weight: 600; }
-            QTabBar::tab { padding: 8px 16px; }
-            QLabel#detailPanel { padding: 12px; }
+            QMainWindow, QWidget#appRoot { background: palette(window); }
+            QWidget#topBar { background: palette(base); border: 1px solid palette(mid); border-radius: 10px; }
+            QLineEdit, QComboBox {
+                min-height: 30px;
+                padding: 2px 10px;
+                border: 1px solid palette(mid);
+                border-radius: 7px;
+                background: palette(base);
+            }
+            QLineEdit:focus, QComboBox:focus { border: 2px solid palette(highlight); padding: 1px 9px; }
+            QPushButton {
+                min-height: 30px;
+                padding: 2px 14px;
+                border: 1px solid palette(mid);
+                border-radius: 7px;
+                background: palette(button);
+            }
+            QPushButton:hover { border-color: palette(highlight); }
+            QPushButton:disabled { color: palette(mid); }
+            QPushButton#removeButton { background: palette(alternate-base); }
+            QTableView {
+                border: 1px solid palette(mid);
+                border-radius: 9px;
+                alternate-background-color: palette(alternate-base);
+                gridline-color: palette(midlight);
+                selection-background-color: palette(highlight);
+                selection-color: palette(highlighted-text);
+            }
+            QHeaderView::section {
+                padding: 8px 10px;
+                border: none;
+                border-bottom: 1px solid palette(mid);
+                background: palette(alternate-base);
+                font-weight: 600;
+            }
+            QTabWidget::pane { border: none; }
+            QTabBar::tab { padding: 10px 18px; margin-right: 3px; border-radius: 7px; }
+            QTabBar::tab:selected { background: palette(highlight); color: palette(highlighted-text); }
+            QTabBar::tab:hover:!selected { background: palette(alternate-base); }
+            QSplitter::handle { background: palette(mid); }
+            QLabel#summaryLabel { padding: 8px 10px; color: palette(text); }
+            QLabel#detailPanel { padding: 0; border: 1px solid palette(mid); border-radius: 9px; background: palette(base); }
+            QLabel#detailTitle { font-size: 15px; font-weight: 700; }
+            QLabel#detailItem { padding: 5px 0; }
             """
         )
         self.thread_pool = QThreadPool.globalInstance()
@@ -95,10 +133,15 @@ class MainWindow(QMainWindow):
 
     def _make_table(self, model: PackageFilterModel) -> QTableView:
         view = QTableView()
+        view.setObjectName("packageTable")
         view.setModel(model)
         view.setSortingEnabled(True)
         view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         view.setSelectionMode(QTableView.SelectionMode.SingleSelection)
+        view.setShowGrid(False)
+        view.setAlternatingRowColors(True)
+        view.setWordWrap(False)
+        view.verticalHeader().setVisible(False)
         view.horizontalHeader().setStretchLastSection(True)
         view.clicked.connect(lambda index, proxy=model: self._package_selected(index, proxy))
         return view
@@ -106,6 +149,8 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         packages_page = QWidget()
         packages_layout = QVBoxLayout(packages_page)
+        packages_layout.setContentsMargins(12, 10, 12, 12)
+        packages_layout.setSpacing(10)
         self.search = QLineEdit()
         self.search.textChanged.connect(self.package_proxy.setFilterFixedString)
         packages_layout.addWidget(self.search)
@@ -123,24 +168,33 @@ class MainWindow(QMainWindow):
 
         orphan_page = QWidget()
         orphan_layout = QVBoxLayout(orphan_page)
+        orphan_layout.setContentsMargins(12, 10, 12, 12)
+        orphan_layout.setSpacing(10)
         self.orphan_search = QLineEdit()
         self.orphan_search.textChanged.connect(self.orphan_proxy.setFilterFixedString)
         orphan_layout.addWidget(self.orphan_search)
         self.orphan_summary = QLabel()
+        self.orphan_summary.setObjectName("summaryLabel")
         orphan_layout.addWidget(self.orphan_summary)
         orphan_layout.addWidget(self.orphan_view)
         self.tabs.addTab(orphan_page, "")
 
         cache_page = QWidget()
         cache_layout = QVBoxLayout(cache_page)
+        cache_layout.setContentsMargins(12, 10, 12, 12)
+        cache_layout.setSpacing(10)
         self.cache_search = QLineEdit()
         self.cache_search.textChanged.connect(self.cache_proxy.setFilterFixedString)
         cache_layout.addWidget(self.cache_search)
         self.cache_summary = QLabel()
+        self.cache_summary.setObjectName("summaryLabel")
         self.cache_cleanup_button = QPushButton()
         self.cache_cleanup_button.clicked.connect(self._request_cache_cleanup)
         self.cache_view = QTableView()
         self.cache_view.setModel(self.cache_proxy)
+        self.cache_view.setShowGrid(False)
+        self.cache_view.setAlternatingRowColors(True)
+        self.cache_view.verticalHeader().setVisible(False)
         self.cache_view.horizontalHeader().setStretchLastSection(True)
         cache_layout.addWidget(self.cache_summary)
         cache_layout.addWidget(self.cache_cleanup_button)
@@ -149,20 +203,28 @@ class MainWindow(QMainWindow):
 
         graph_page = QWidget()
         graph_layout = QVBoxLayout(graph_page)
+        graph_layout.setContentsMargins(12, 10, 12, 12)
+        graph_layout.setSpacing(10)
         self.graph_hint = QLabel()
+        self.graph_hint.setObjectName("summaryLabel")
         graph_layout.addWidget(self.graph_hint)
         graph_layout.addWidget(self.graph_view)
         self.tabs.addTab(graph_page, "")
 
         toolbar = QWidget()
+        toolbar.setObjectName("topBar")
         toolbar_layout = QHBoxLayout(toolbar)
+        toolbar_layout.setContentsMargins(10, 6, 10, 6)
         toolbar_layout.addStretch()
         self.export_button = QPushButton()
         self.export_button.clicked.connect(self._export_report)
         toolbar_layout.addWidget(self.export_button)
         toolbar_layout.addWidget(self.language_combo)
         root = QWidget()
+        root.setObjectName("appRoot")
         root_layout = QVBoxLayout(root)
+        root_layout.setContentsMargins(12, 10, 12, 12)
+        root_layout.setSpacing(10)
         root_layout.addWidget(toolbar)
         root_layout.addWidget(self.tabs)
         self.setCentralWidget(root)
