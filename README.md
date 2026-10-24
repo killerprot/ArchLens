@@ -1,9 +1,8 @@
 # ArchLens
 
-ArchLens is a read-only Arch Linux package dependency analyzer. The current
-milestone contains the local pacman database parser, an in-memory dependency
-graph, orphan analysis, removal estimates, and a small CLI. Core code has no
-Qt dependency.
+ArchLens is an Arch Linux package dependency analyzer. The current milestone
+adds a standalone PySide6 window with package search, sorting, orphan analysis,
+and package details. Core code has no Qt dependency.
 
 ## Development
 
@@ -30,6 +29,15 @@ python -m archlens freed package-name
 python scripts/verify_closure.py
 python scripts/verify_unrequired.py
 ```
+
+With no arguments, the command starts the Qt application:
+
+```sh
+python -m archlens
+```
+
+The application reads the local pacman database in the background and does not
+depend on caelestia-shell.
 
 The `closure` and `freed` results are estimates. Before any future removal
 feature, pacman's dry-run result must override them and an explicit confirmation

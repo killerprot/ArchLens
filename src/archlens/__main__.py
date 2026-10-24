@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from archlens.core.analysis import explain_why, freed_size, orphans, removal_closure
 from archlens.core.graph import DependencyGraph
@@ -10,6 +11,15 @@ from archlens.infra.local_db import LocalPacmanSource
 
 
 def main() -> int:
+    if len(sys.argv) == 1:
+        from PySide6.QtWidgets import QApplication
+
+        from archlens.ui.main_window import MainWindow
+
+        app = QApplication(sys.argv)
+        window = MainWindow()
+        window.show()
+        return app.exec()
     parser = argparse.ArgumentParser(prog="python -m archlens")
     parser.add_argument("command", choices=("orphans", "explain", "closure", "freed"))
     parser.add_argument("packages", nargs="*")
