@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import (
+    QEasingCurve,
+    QParallelAnimationGroup,
+    QPointF,
+    QPropertyAnimation,
+    QRectF,
+    Qt,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import (
     QBrush,
     QColor,
@@ -18,7 +27,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QGraphicsObject,
-    QGraphicsPathItem,
     QGraphicsScene,
     QGraphicsView,
     QVBoxLayout,
@@ -96,7 +104,7 @@ class PackageNode(QGraphicsObject):
         super().hoverLeaveEvent(event)
 
 
-class DependencyEdge(QGraphicsPathItem):
+class DependencyEdge(QGraphicsObject):
     """Curved directed edge with a small arrowhead."""
 
     def __init__(self, start: QPointF, end: QPointF) -> None:
@@ -104,10 +112,12 @@ class DependencyEdge(QGraphicsPathItem):
         self.start = start
         self.end = end
         self.setZValue(-1)
-        path = QPainterPath(start)
+        self._path = QPainterPath(start)
         midpoint = (start.x() + end.x()) / 2
-        path.cubicTo(QPointF(midpoint, start.y()), QPointF(midpoint, end.y()), end)
-        self.setPath(path)
+        self._path.cubicTo(QPointF(midpoint, start.y()), QPointF(midpoint, end.y()), end)
+
+    def boundingRect(self) -> QRectF:
+        return self._path.controlPointRect().adjusted(-10, -10, 10, 10)
 
     def paint(self, painter: QPainter, _option, _widget=None) -> None:
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -115,7 +125,7 @@ class DependencyEdge(QGraphicsPathItem):
         # An open path is implicitly closed when filled, producing large wedges
         # between distant nodes. The edge body must remain stroke-only.
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
-        painter.drawPath(self.path())
+        painter.drawPath(self._path)
 
         dx = self.end.x() - (self.end.x() + self.start.x()) / 2
         angle = math.atan2(0, dx)
@@ -143,6 +153,7 @@ class GraphView(QWidget):
         self.scene.setSceneRect(QRectF(-100000, -100000, 200000, 200000))
         self._rebuilding = False
         self._nodes: dict[str, PackageNode] = {}
+        self._graph_animation: QParallelAnimationGroup | None = None
         self.view = ZoomGraphicsView(self.scene)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.view.setFrameShape(QGraphicsView.Shape.NoFrame)
@@ -156,6 +167,9 @@ class GraphView(QWidget):
         layout.addWidget(self.view)
 
     def show_package(self, package: Package, graph: DependencyGraph) -> None:
+        if self._graph_animation is not None:
+            self._graph_animation.stop()
+            self._graph_animation = None
         self._rebuilding = True
         self.scene.clear()
         self._nodes = {}
@@ -183,7 +197,40 @@ class GraphView(QWidget):
             self.scene.addItem(node)
         content_rect = self.scene.itemsBoundingRect().adjusted(-90, -90, 90, 90)
         self.view.fitInView(content_rect, Qt.AspectRatioMode.KeepAspectRatio)
+        self._animate_graph(center)
         self._rebuilding = False
+
+    def _animate_graph(self, center: QPointF) -> None:
+        animation = QParallelAnimationGroup(self)
+        for node in self._nodes.values():
+            target = node.pos()
+            node.setOpacity(0.0)
+            if target != center:
+                node.setPos(center)
+            opacity = QPropertyAnimation(node, b"opacity", animation)
+            opacity.setDuration(260)
+            opacity.setStartValue(0.0)
+            opacity.setEndValue(1.0)
+            opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
+            animation.addAnimation(opacity)
+            if target != center:
+                position = QPropertyAnimation(node, b"pos", animation)
+                position.setDuration(320)
+                position.setStartValue(center)
+                position.setEndValue(target)
+                position.setEasingCurve(QEasingCurve.Type.OutCubic)
+                animation.addAnimation(position)
+        for edge in self.scene.items():
+            if isinstance(edge, DependencyEdge):
+                edge.setOpacity(0.0)
+                opacity = QPropertyAnimation(edge, b"opacity", animation)
+                opacity.setDuration(220)
+                opacity.setStartValue(0.0)
+                opacity.setEndValue(1.0)
+                opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
+                animation.addAnimation(opacity)
+        self._graph_animation = animation
+        animation.start()
 
     def _add_node(self, name: str, center: QPointF, color: QColor, selected: bool = False) -> None:
         node = PackageNode(
