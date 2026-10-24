@@ -9,11 +9,14 @@ Qt dependency.
 
 ```sh
 python -m venv .venv
-. .venv/bin/activate
-pip install -e '.[dev]'
+.venv/bin/python -m pip install -e '.[dev]'
 pytest
 ruff check .
 ```
+
+For Fish, either use the same explicit `.venv/bin/...` commands, or activate
+the environment with `source .venv/bin/activate.fish`. Do not source the Bash
+file `.venv/bin/activate` from Fish.
 
 ## CLI
 
