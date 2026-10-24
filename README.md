@@ -52,9 +52,19 @@ For a local editable install, the `archlens` command is created by pip:
 .venv/bin/archlens
 ```
 
-The desktop entry template is in `data/archlens.desktop`. Copy it and the icon
-to `/usr/share/applications` and `/usr/share/icons/hicolor/scalable/apps` when
-installing from a package; development runs do not require system installation.
+For a local checkout, install a user-local launcher and desktop entry with one
+command:
+
+```sh
+bash scripts/install_desktop.sh
+```
+
+The script creates or updates `.venv`, installs ArchLens, puts the launcher in
+`~/.local/bin`, and installs an executable desktop entry and icon in
+`~/.local/share`. It does not require `sudo` or modify system directories.
+
+The desktop entry template is in `data/archlens.desktop`; package maintainers
+can install it and the icon system-wide instead.
 
 See [docs/PRD.md](docs/PRD.md), [docs/Architecture.md](docs/Architecture.md),
 and [docs/pacman-verification.md](docs/pacman-verification.md) for the source
