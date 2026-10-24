@@ -26,6 +26,13 @@ TEXT = {
     "packages_loaded": {"en": "{count} packages", "ru": "Пакетов: {count}"},
     "no_selection": {"en": "Select a package to inspect it.", "ru": "Выберите пакет для просмотра."},
     "language": {"en": "Language", "ru": "Язык"},
+    "tab_cache": {"en": "Cache", "ru": "Кэш"},
+    "remove_selected": {"en": "Remove selected", "ru": "Удалить выбранный"},
+    "protected": {"en": "This package is protected.", "ru": "Этот пакет защищён."},
+    "dry_run": {"en": "Removal preview", "ru": "Предпросмотр удаления"},
+    "confirm_remove": {"en": "Run removal with pkexec?", "ru": "Запустить удаление через pkexec?"},
+    "dry_run_failed": {"en": "Dry-run failed: {error}", "ru": "Предпросмотр не удался: {error}"},
+    "cache_total": {"en": "Cached packages: {count}, total size: {size}", "ru": "Пакетов в кэше: {count}, общий размер: {size}"},
 }
 
 
