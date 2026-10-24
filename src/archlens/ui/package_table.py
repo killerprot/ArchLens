@@ -7,16 +7,7 @@ from datetime import datetime
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt
 
 from archlens.core.models import Package, Reason
-from archlens.strings import (
-    COL_DATE,
-    COL_FREED,
-    COL_NAME,
-    COL_REASON,
-    COL_SIZE,
-    COL_VERSION,
-    DEPENDENCY,
-    EXPLICIT,
-)
+from archlens.strings import text
 
 
 def format_size(size: int) -> str:
@@ -29,12 +20,23 @@ def format_size(size: int) -> str:
 
 
 class PackageTableModel(QAbstractTableModel):
-    HEADERS = (COL_NAME, COL_VERSION, COL_SIZE, COL_FREED, COL_REASON, COL_DATE)
-
     def __init__(self, packages: tuple[Package, ...] = ()) -> None:
         super().__init__()
         self.packages = list(packages)
         self.freed: dict[str, int] = {}
+        self.language = "en"
+
+    def set_language(self, language: str) -> None:
+        self.language = language
+        self.headerDataChanged.emit(Qt.Horizontal, 0, 5)
+        if self.packages:
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
+
+    def _headers(self) -> tuple[str, ...]:
+        return tuple(
+            text(key, self.language)
+            for key in ("name", "version", "size", "freed", "reason", "date")
+        )
 
     def set_packages(self, packages: tuple[Package, ...]) -> None:
         self.beginResetModel()
@@ -47,11 +49,11 @@ class PackageTableModel(QAbstractTableModel):
 
     def columnCount(self, parent: QModelIndex | None = None) -> int:
         parent = parent or QModelIndex()
-        return 0 if parent.isValid() else len(self.HEADERS)
+        return 0 if parent.isValid() else 6
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.HEADERS[section]
+            return self._headers()[section]
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
@@ -66,7 +68,9 @@ class PackageTableModel(QAbstractTableModel):
                 package.version,
                 format_size(package.installed_size),
                 format_size(self.freed.get(package.name, 0)) if package.name in self.freed else "—",
-                EXPLICIT if package.reason is Reason.EXPLICIT else DEPENDENCY,
+                text("explicit", self.language)
+                if package.reason is Reason.EXPLICIT
+                else text("dependency", self.language),
                 package.install_date.astimezone().strftime("%Y-%m-%d"),
             )
             return values[index.column()]
