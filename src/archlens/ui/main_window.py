@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSortFilterProxyModel, Qt, QThreadPool
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSortFilterProxyModel, Qt, QThreadPool
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -35,6 +36,32 @@ from archlens.ui.cache_view import CacheTableModel
 from archlens.ui.graph_view import GraphView
 from archlens.ui.package_detail import PackageDetail
 from archlens.ui.package_table import PackageFilterModel, PackageTableModel, format_size
+
+
+class AnimatedTabWidget(QTabWidget):
+    """Fade the newly selected page into view without replacing Qt's tab behavior."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._page_animation: QPropertyAnimation | None = None
+        self.currentChanged.connect(self._animate_current_page)
+
+    def _animate_current_page(self, index: int) -> None:
+        if not self.isVisible() or index < 0:
+            return
+        page = self.widget(index)
+        if page is None:
+            return
+        effect = QGraphicsOpacityEffect(page)
+        page.setGraphicsEffect(effect)
+        animation = QPropertyAnimation(effect, b"opacity", self)
+        animation.setDuration(180)
+        animation.setStartValue(0.0)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.finished.connect(lambda: page.setGraphicsEffect(None))
+        self._page_animation = animation
+        animation.start()
 
 
 class MainWindow(QMainWindow):
@@ -106,7 +133,7 @@ class MainWindow(QMainWindow):
         self.estimate_statuses: dict[str, str] = {}
         self.detail = PackageDetail()
         self.detail.setObjectName("detailPanel")
-        self.tabs = QTabWidget()
+        self.tabs = AnimatedTabWidget()
         self.language_combo = QComboBox()
         for code, label in LANGUAGES.items():
             self.language_combo.addItem(label, code)
