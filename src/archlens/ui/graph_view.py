@@ -121,7 +121,8 @@ class DependencyEdge(QGraphicsObject):
 
     def paint(self, painter: QPainter, _option, _widget=None) -> None:
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor("#68728a"), 1.5))
+        edge_color = QColor(104, 114, 138, 155)
+        painter.setPen(QPen(edge_color, 1.25))
         # An open path is implicitly closed when filled, producing large wedges
         # between distant nodes. The edge body must remain stroke-only.
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
@@ -132,7 +133,7 @@ class DependencyEdge(QGraphicsObject):
         size = 8
         left = self.end - QPointF(math.cos(angle - math.pi / 6) * size, math.sin(angle - math.pi / 6) * size)
         right = self.end - QPointF(math.cos(angle + math.pi / 6) * size, math.sin(angle + math.pi / 6) * size)
-        painter.setBrush(QBrush(QColor("#68728a")))
+        painter.setBrush(QBrush(edge_color))
         painter.drawPolygon(QPolygonF((self.end, left, right)))
 
 
@@ -153,7 +154,9 @@ class GraphView(QWidget):
         self.scene.setSceneRect(QRectF(-100000, -100000, 200000, 200000))
         self._rebuilding = False
         self._nodes: dict[str, PackageNode] = {}
-        self._graph_animation: QParallelAnimationGroup | None = None
+        self._edges: list[DependencyEdge] = []
+        self._node_animation: QParallelAnimationGroup | None = None
+        self._edge_animation: QParallelAnimationGroup | None = None
         self.view = ZoomGraphicsView(self.scene)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.view.setFrameShape(QGraphicsView.Shape.NoFrame)
@@ -167,12 +170,16 @@ class GraphView(QWidget):
         layout.addWidget(self.view)
 
     def show_package(self, package: Package, graph: DependencyGraph) -> None:
-        if self._graph_animation is not None:
-            self._graph_animation.stop()
-            self._graph_animation = None
+        if self._node_animation is not None:
+            self._node_animation.stop()
+            self._node_animation = None
+        if self._edge_animation is not None:
+            self._edge_animation.stop()
+            self._edge_animation = None
         self._rebuilding = True
         self.scene.clear()
         self._nodes = {}
+        self._edges = []
         center = QPointF(0, 0)
         self._add_node(package.name, center, QColor("#2f6fed"), selected=True)
         dependencies = sorted(graph.deps.get(package.name, ()))
@@ -223,13 +230,23 @@ class GraphView(QWidget):
         for edge in self.scene.items():
             if isinstance(edge, DependencyEdge):
                 edge.setOpacity(0.0)
-                opacity = QPropertyAnimation(edge, b"opacity", animation)
-                opacity.setDuration(220)
-                opacity.setStartValue(0.0)
-                opacity.setEndValue(1.0)
-                opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
-                animation.addAnimation(opacity)
-        self._graph_animation = animation
+                self._edges.append(edge)
+        animation.finished.connect(self._start_edge_animation)
+        self._node_animation = animation
+        animation.start()
+
+    def _start_edge_animation(self) -> None:
+        if self._rebuilding or not self._edges:
+            return
+        animation = QParallelAnimationGroup(self)
+        for edge in self._edges:
+            opacity = QPropertyAnimation(edge, b"opacity", animation)
+            opacity.setDuration(180)
+            opacity.setStartValue(0.0)
+            opacity.setEndValue(1.0)
+            opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
+            animation.addAnimation(opacity)
+        self._edge_animation = animation
         animation.start()
 
     def _add_node(self, name: str, center: QPointF, color: QColor, selected: bool = False) -> None:
