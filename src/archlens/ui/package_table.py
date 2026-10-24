@@ -24,6 +24,8 @@ class PackageTableModel(QAbstractTableModel):
         super().__init__()
         self.packages = list(packages)
         self.freed: dict[str, int] = {}
+        self.freed_status: dict[str, str] = {}
+        self.optional_names: set[str] = set()
         self.language = "en"
 
     def set_language(self, language: str) -> None:
@@ -42,6 +44,17 @@ class PackageTableModel(QAbstractTableModel):
         self.beginResetModel()
         self.packages = list(packages)
         self.endResetModel()
+
+    def set_estimates(self, estimates: dict[str, int], statuses: dict[str, str]) -> None:
+        self.freed = estimates
+        self.freed_status = statuses
+        if self.packages:
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
+
+    def set_optional_names(self, names: set[str]) -> None:
+        self.optional_names = names
+        if self.packages:
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
         parent = parent or QModelIndex()
@@ -67,8 +80,14 @@ class PackageTableModel(QAbstractTableModel):
                 package.name,
                 package.version,
                 format_size(package.installed_size),
-                format_size(self.freed.get(package.name, 0)) if package.name in self.freed else "—",
-                text("explicit", self.language)
+                text(self.freed_status[package.name], self.language)
+                if package.name in self.freed_status
+                else format_size(self.freed[package.name])
+                if package.name in self.freed
+                else "—",
+                text("optional", self.language)
+                if package.name in self.optional_names
+                else text("explicit", self.language)
                 if package.reason is Reason.EXPLICIT
                 else text("dependency", self.language),
                 package.install_date.astimezone().strftime("%Y-%m-%d"),
@@ -79,7 +98,7 @@ class PackageTableModel(QAbstractTableModel):
                 package.name,
                 package.version,
                 package.installed_size,
-                self.freed.get(package.name, 0),
+                self.freed.get(package.name, -1),
                 package.reason.value,
                 package.install_date,
             )

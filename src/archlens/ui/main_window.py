@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QThreadPool
+from PySide6.QtCore import QSortFilterProxyModel, Qt, QThreadPool
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from archlens.app.cache import CacheTask
 from archlens.app.removal import DryRunTask, RemovalTask
-from archlens.app.workers import LoadPackagesTask
+from archlens.app.workers import LoadPackagesTask, RemovalEstimateTask
 from archlens.core.analysis import orphans
 from archlens.core.cache_analysis import CachedPackage, cache_total
 from archlens.core.graph import DependencyGraph
@@ -57,6 +57,7 @@ class MainWindow(QMainWindow):
         self.dry_run_task: DryRunTask | None = None
         self.removal_task: RemovalTask | None = None
         self.cache_task: CacheTask | None = None
+        self.estimate_task: RemovalEstimateTask | None = None
         self.detail = PackageDetail()
         self.detail.setObjectName("detailPanel")
         self.tabs = QTabWidget()
@@ -73,6 +74,10 @@ class MainWindow(QMainWindow):
         self.orphan_proxy.setSourceModel(self.orphan_model)
         self.orphan_view = self._make_table(self.orphan_proxy)
         self.cache_model = CacheTableModel()
+        self.cache_proxy = QSortFilterProxyModel()
+        self.cache_proxy.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.cache_proxy.setFilterKeyColumn(0)
+        self.cache_proxy.setSourceModel(self.cache_model)
         self._build_ui()
         self.statusBar().showMessage(text("loading", self.language))
         self._load()
@@ -108,6 +113,9 @@ class MainWindow(QMainWindow):
 
         orphan_page = QWidget()
         orphan_layout = QVBoxLayout(orphan_page)
+        self.orphan_search = QLineEdit()
+        self.orphan_search.textChanged.connect(self.orphan_proxy.setFilterFixedString)
+        orphan_layout.addWidget(self.orphan_search)
         self.orphan_summary = QLabel()
         orphan_layout.addWidget(self.orphan_summary)
         orphan_layout.addWidget(self.orphan_view)
@@ -115,9 +123,12 @@ class MainWindow(QMainWindow):
 
         cache_page = QWidget()
         cache_layout = QVBoxLayout(cache_page)
+        self.cache_search = QLineEdit()
+        self.cache_search.textChanged.connect(self.cache_proxy.setFilterFixedString)
+        cache_layout.addWidget(self.cache_search)
         self.cache_summary = QLabel()
         self.cache_view = QTableView()
-        self.cache_view.setModel(self.cache_model)
+        self.cache_view.setModel(self.cache_proxy)
         self.cache_view.horizontalHeader().setStretchLastSection(True)
         cache_layout.addWidget(self.cache_summary)
         cache_layout.addWidget(self.cache_view)
@@ -147,10 +158,22 @@ class MainWindow(QMainWindow):
         self.package_model.set_packages(packages)
         orphan_items = orphans(graph)
         self.orphan_model.set_packages(tuple(item.package for item in orphan_items))
+        self.orphan_model.set_optional_names(
+            {item.package.name for item in orphan_items if item.optionally_required}
+        )
         self.package_view.resizeColumnsToContents()
         self.orphan_view.resizeColumnsToContents()
         self._update_orphan_summary(orphan_items)
         self.statusBar().showMessage(text("packages_loaded", self.language, count=len(packages)))
+        task = RemovalEstimateTask(graph)
+        self.estimate_task = task
+        task.signals.completed.connect(self._estimates_loaded)
+        task.signals.failed.connect(self._load_failed)
+        self.thread_pool.start(task)
+
+    def _estimates_loaded(self, estimates: dict[str, int], statuses: dict[str, str]) -> None:
+        self.package_model.set_estimates(estimates, statuses)
+        self.orphan_model.set_estimates(estimates, statuses)
 
     def _load_failed(self, error: str) -> None:
         self.statusBar().showMessage(text("load_error", self.language, error=error))
@@ -172,8 +195,15 @@ class MainWindow(QMainWindow):
 
     def _update_orphan_summary(self, orphan_items) -> None:
         total = sum(item.package.installed_size for item in orphan_items if not item.optionally_required)
+        optional = sum(1 for item in orphan_items if item.optionally_required)
         self.orphan_summary.setText(
-            text("orphans_total", self.language, count=len(orphan_items), size=format_size(total))
+            text(
+                "orphans_total",
+                self.language,
+                count=len(orphan_items),
+                optional=optional,
+                size=format_size(total),
+            )
         )
 
     def _retranslate(self) -> None:
@@ -182,6 +212,8 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(1, text("tab_orphans", self.language))
         self.tabs.setTabText(2, text("tab_cache", self.language))
         self.search.setPlaceholderText(text("search", self.language))
+        self.orphan_search.setPlaceholderText(text("search", self.language))
+        self.cache_search.setPlaceholderText(text("search", self.language))
         self.remove_button.setText(text("remove_selected", self.language))
         self.language_combo.setToolTip(text("language", self.language))
         self.package_model.set_language(self.language)
