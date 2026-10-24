@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSortFilterProxyModel, Qt, QThreadPool
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFileDialog,
     QFrame,
@@ -11,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListView,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -159,39 +162,64 @@ class MainWindow(QMainWindow):
         self.resize(1100, 700)
         self.setStyleSheet(
             """
-            QMainWindow, QWidget#appRoot { background: palette(window); }
-            QWidget#topBar { background: palette(base); border: 1px solid palette(mid); border-radius: 10px; }
+            QMainWindow, QWidget#appRoot { background: palette(window); color: palette(text); }
+            QWidget#topBar { background: #20252e; border: 1px solid #3b424f; border-radius: 12px; }
             QLineEdit, QComboBox {
                 min-height: 30px;
                 padding: 2px 10px;
-                border: 1px solid palette(mid);
-                border-radius: 7px;
-                background: palette(base);
+                border: 1px solid #3b424f;
+                border-radius: 9px;
+                background: #171b22;
+                color: #e7eaf0;
             }
             QLineEdit:focus, QComboBox:focus { border: 2px solid palette(highlight); padding: 1px 9px; }
-            QPushButton {
-                min-height: 30px;
-                padding: 2px 14px;
-                border: 1px solid palette(mid);
-                border-radius: 7px;
-                background: palette(button);
-            }
-            QPushButton:hover { border-color: palette(highlight); }
-            QPushButton:disabled { color: palette(mid); }
-            QPushButton#removeButton { background: palette(alternate-base); }
-            QTableView {
-                border: 1px solid palette(mid);
+            QComboBox#languageCombo { min-width: 112px; }
+            QComboBox#languageCombo QAbstractItemView {
+                min-width: 112px;
+                padding: 5px;
+                border: 1px solid #3b424f;
                 border-radius: 9px;
-                alternate-background-color: palette(alternate-base);
-                gridline-color: palette(midlight);
+                background: #20252e;
+                color: #e7eaf0;
                 selection-background-color: palette(highlight);
                 selection-color: palette(highlighted-text);
             }
+            QPushButton {
+                min-height: 30px;
+                padding: 2px 14px;
+                border: 1px solid #3b424f;
+                border-radius: 9px;
+                background: #2a303b;
+                color: #e7eaf0;
+            }
+            QPushButton:hover { border-color: palette(highlight); background: #323947; }
+            QPushButton:disabled { color: #737b89; }
+            QPushButton#removeButton { background: #272d38; }
+            QTableView {
+                border: 1px solid #3b424f;
+                border-radius: 11px;
+                background: #171b22;
+                alternate-background-color: #1d222b;
+                gridline-color: #292f39;
+                selection-background-color: palette(highlight);
+                selection-color: palette(highlighted-text);
+            }
+            QScrollBar:vertical, QScrollBar:horizontal { background: transparent; border: none; margin: 4px; }
+            QScrollBar:vertical { width: 10px; }
+            QScrollBar:horizontal { height: 10px; }
+            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
+                min-height: 24px;
+                min-width: 24px;
+                border-radius: 5px;
+                background: #454d5c;
+            }
+            QScrollBar::handle:hover { background: #596477; }
+            QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
             QHeaderView::section {
                 padding: 8px 10px;
                 border: none;
-                border-bottom: 1px solid palette(mid);
-                background: palette(alternate-base);
+                border-bottom: 1px solid #3b424f;
+                background: #20252e;
                 font-weight: 600;
             }
             QTabWidget::pane { border: none; }
@@ -201,13 +229,14 @@ class MainWindow(QMainWindow):
             QTabBar::tab:hover:!selected { background: palette(alternate-base); }
             QFrame#tabIndicator { background: palette(highlight); border-radius: 2px; }
             QFrame#selectionIndicator { border: 2px solid palette(highlight); border-radius: 6px; background: transparent; }
-            QSplitter::handle { background: palette(mid); }
+            QSplitter::handle { background: #3b424f; }
             QLabel#summaryLabel { padding: 8px 10px; color: palette(text); }
-            QLabel#detailPanel { padding: 0; border: 1px solid palette(mid); border-radius: 9px; background: palette(base); }
+            QWidget#detailPanel { padding: 0; border: 1px solid #3b424f; border-radius: 11px; background: #171b22; }
             QLabel#detailTitle { font-size: 15px; font-weight: 700; }
             QLabel#detailItem { padding: 5px 0; }
             """
         )
+        self._apply_dark_palette()
         self.thread_pool = QThreadPool.globalInstance()
         self.load_task: LoadPackagesTask | None = None
         self.graph: DependencyGraph | None = None
@@ -223,6 +252,10 @@ class MainWindow(QMainWindow):
         self.detail.setObjectName("detailPanel")
         self.tabs = AnimatedTabWidget()
         self.language_combo = QComboBox()
+        self.language_combo.setObjectName("languageCombo")
+        self.language_combo.setView(QListView())
+        self.language_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.language_combo.view().setMinimumWidth(130)
         for code, label in LANGUAGES.items():
             self.language_combo.addItem(label, code)
         self.language_combo.currentIndexChanged.connect(self._language_changed)
@@ -344,6 +377,22 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.tabs)
         self.setCentralWidget(root)
         self._retranslate()
+
+    def _apply_dark_palette(self) -> None:
+        palette = self.palette()
+        palette.setColor(QPalette.ColorRole.Window, QColor("#171b22"))
+        palette.setColor(QPalette.ColorRole.Base, QColor("#171b22"))
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#1d222b"))
+        palette.setColor(QPalette.ColorRole.Button, QColor("#2a303b"))
+        palette.setColor(QPalette.ColorRole.Text, QColor("#e7eaf0"))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor("#e7eaf0"))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor("#e7eaf0"))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor("#368bd1"))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+        palette.setColor(QPalette.ColorRole.Mid, QColor("#3b424f"))
+        palette.setColor(QPalette.ColorRole.Midlight, QColor("#454d5c"))
+        QApplication.instance().setPalette(palette)
+        self.setPalette(palette)
 
     def _load(self) -> None:
         task = LoadPackagesTask()
