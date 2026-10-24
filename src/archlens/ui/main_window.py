@@ -267,6 +267,8 @@ class MainWindow(QMainWindow):
         self.orphan_proxy = PackageFilterModel()
         self.orphan_proxy.setSourceModel(self.orphan_model)
         self.orphan_view = self._make_table(self.orphan_proxy)
+        self.orphan_detail = PackageDetail()
+        self.orphan_detail.setObjectName("detailPanel")
         self.cache_model = CacheTableModel()
         self.graph_view = GraphView()
         self.graph_view.node_selected.connect(self._graph_node_selected)
@@ -324,7 +326,12 @@ class MainWindow(QMainWindow):
         self.orphan_summary = QLabel()
         self.orphan_summary.setObjectName("summaryLabel")
         orphan_layout.addWidget(self.orphan_summary)
-        orphan_layout.addWidget(self.orphan_view)
+        orphan_splitter = QSplitter()
+        orphan_splitter.addWidget(self.orphan_view)
+        orphan_splitter.addWidget(self.orphan_detail)
+        orphan_splitter.setStretchFactor(0, 3)
+        orphan_splitter.setStretchFactor(1, 2)
+        orphan_layout.addWidget(orphan_splitter)
         self.tabs.addTab(orphan_page, "")
 
         cache_page = QWidget()
@@ -439,7 +446,8 @@ class MainWindow(QMainWindow):
         if isinstance(package, Package):
             self.selected_package = package
             self.remove_button.setEnabled(package.name not in self.protected_names)
-            self.detail.show_package(package, self.graph)
+            detail = self.orphan_detail if proxy is self.orphan_proxy else self.detail
+            detail.show_package(package, self.graph)
             self.graph_view.show_package(package, self.graph)
 
     def _graph_node_selected(self, package_name: str) -> None:
@@ -492,6 +500,7 @@ class MainWindow(QMainWindow):
         self.orphan_model.set_language(self.language)
         self.cache_model.set_language(self.language)
         self.detail.set_language(self.language)
+        self.orphan_detail.set_language(self.language)
         if self.graph is not None:
             self._update_orphan_summary(orphans(self.graph))
 
