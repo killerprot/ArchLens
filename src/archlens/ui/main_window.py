@@ -32,6 +32,7 @@ from archlens.infra.config import load_config
 from archlens.infra.pacman_cli import DryRunResult
 from archlens.strings import LANGUAGES, text
 from archlens.ui.cache_view import CacheTableModel
+from archlens.ui.graph_view import GraphView
 from archlens.ui.package_detail import PackageDetail
 from archlens.ui.package_table import PackageFilterModel, PackageTableModel, format_size
 
@@ -81,6 +82,8 @@ class MainWindow(QMainWindow):
         self.orphan_proxy.setSourceModel(self.orphan_model)
         self.orphan_view = self._make_table(self.orphan_proxy)
         self.cache_model = CacheTableModel()
+        self.graph_view = GraphView()
+        self.graph_view.node_selected.connect(self._graph_node_selected)
         self.cache_proxy = QSortFilterProxyModel()
         self.cache_proxy.setFilterCaseSensitivity(Qt.CaseInsensitive)
         self.cache_proxy.setFilterKeyColumn(0)
@@ -144,6 +147,13 @@ class MainWindow(QMainWindow):
         cache_layout.addWidget(self.cache_view)
         self.tabs.addTab(cache_page, "")
 
+        graph_page = QWidget()
+        graph_layout = QVBoxLayout(graph_page)
+        self.graph_hint = QLabel()
+        graph_layout.addWidget(self.graph_hint)
+        graph_layout.addWidget(self.graph_view)
+        self.tabs.addTab(graph_page, "")
+
         toolbar = QWidget()
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.addStretch()
@@ -204,6 +214,16 @@ class MainWindow(QMainWindow):
             self.selected_package = package
             self.remove_button.setEnabled(package.name not in self.protected_names)
             self.detail.show_package(package, self.graph)
+            self.graph_view.show_package(package, self.graph)
+
+    def _graph_node_selected(self, package_name: str) -> None:
+        if self.graph is None or package_name not in self.graph.by_name:
+            return
+        package = self.graph.by_name[package_name]
+        self.selected_package = package
+        self.remove_button.setEnabled(package.name not in self.protected_names)
+        self.detail.show_package(package, self.graph)
+        self.graph_view.show_package(package, self.graph)
 
     def _language_changed(self, index: int) -> None:
         self.language = self.language_combo.itemData(index)
@@ -233,12 +253,14 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(0, text("tab_packages", self.language))
         self.tabs.setTabText(1, text("tab_orphans", self.language))
         self.tabs.setTabText(2, text("tab_cache", self.language))
+        self.tabs.setTabText(3, text("tab_graph", self.language))
         self.search.setPlaceholderText(text("search", self.language))
         self.orphan_search.setPlaceholderText(text("search", self.language))
         self.cache_search.setPlaceholderText(text("search", self.language))
         self.remove_button.setText(text("remove_selected", self.language))
         self.export_button.setText(text("export", self.language))
         self.cache_cleanup_button.setText(text("clear_cache", self.language))
+        self.graph_hint.setText(text("graph_hint", self.language))
         self.language_combo.setToolTip(text("language", self.language))
         self.package_model.set_language(self.language)
         self.orphan_model.set_language(self.language)

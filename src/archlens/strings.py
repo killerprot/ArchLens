@@ -32,6 +32,8 @@ TEXT = {
     "no_selection": {"en": "Select a package to inspect it.", "ru": "Выберите пакет для просмотра."},
     "language": {"en": "Language", "ru": "Язык"},
     "tab_cache": {"en": "Cache", "ru": "Кэш"},
+    "tab_graph": {"en": "Graph", "ru": "Граф"},
+    "graph_hint": {"en": "Select a package to view its local dependency graph.", "ru": "Выберите пакет, чтобы увидеть локальный граф зависимостей."},
     "remove_selected": {"en": "Preview removal", "ru": "Предпросмотр удаления"},
     "protected": {"en": "This package is protected.", "ru": "Этот пакет защищён."},
     "dry_run": {"en": "Removal preview", "ru": "Предпросмотр удаления"},
