@@ -6,6 +6,7 @@ from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QSortFilterProxyMod
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
+    QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
+    QTabBar,
     QTableView,
     QTabWidget,
     QVBoxLayout,
@@ -38,11 +40,94 @@ from archlens.ui.package_detail import PackageDetail
 from archlens.ui.package_table import PackageFilterModel, PackageTableModel, format_size
 
 
+class AnimatedTabBar(QTabBar):
+    """Move a small accent block between tabs when the current page changes."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setObjectName("mainTabBar")
+        self.indicator = QFrame(self)
+        self.indicator.setObjectName("tabIndicator")
+        self.indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self._indicator_animation: QPropertyAnimation | None = None
+        self.currentChanged.connect(self._move_indicator)
+
+    def _indicator_rect(self, index: int):
+        rect = self.tabRect(index)
+        return rect.adjusted(10, rect.height() - 4, -10, 0)
+
+    def _move_indicator(self, index: int) -> None:
+        if index < 0:
+            self.indicator.hide()
+            return
+        target = self._indicator_rect(index)
+        if not self.indicator.isVisible() or not self.isVisible():
+            self.indicator.setGeometry(target)
+            self.indicator.show()
+            return
+        animation = QPropertyAnimation(self.indicator, b"geometry", self)
+        animation.setDuration(180)
+        animation.setStartValue(self.indicator.geometry())
+        animation.setEndValue(target)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._indicator_animation = animation
+        animation.start()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if self.currentIndex() >= 0:
+            self.indicator.setGeometry(self._indicator_rect(self.currentIndex()))
+
+
+class AnimatedSelectionTable(QTableView):
+    """Table view with a lightweight animated outline around the current row."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.selection_indicator = QFrame(self.viewport())
+        self.selection_indicator.setObjectName("selectionIndicator")
+        self.selection_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.selection_indicator.hide()
+        self._selection_animation: QPropertyAnimation | None = None
+
+    def setModel(self, model) -> None:
+        super().setModel(model)
+        if self.selectionModel() is not None:
+            self.selectionModel().currentChanged.connect(self._move_selection_indicator)
+
+    def _move_selection_indicator(self, current, _previous) -> None:
+        if not current.isValid():
+            self.selection_indicator.hide()
+            return
+        rect = self.visualRect(current).adjusted(2, 1, -2, -1)
+        if not rect.isValid() or rect.height() <= 0:
+            self.selection_indicator.hide()
+            return
+        if not self.selection_indicator.isVisible():
+            self.selection_indicator.setGeometry(rect)
+            self.selection_indicator.show()
+            return
+        animation = QPropertyAnimation(self.selection_indicator, b"geometry", self)
+        animation.setDuration(150)
+        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        animation.setStartValue(self.selection_indicator.geometry())
+        animation.setEndValue(rect)
+        self._selection_animation = animation
+        animation.start()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        current = self.currentIndex()
+        if current.isValid() and self.selection_indicator.isVisible():
+            self.selection_indicator.setGeometry(self.visualRect(current).adjusted(2, 1, -2, -1))
+
+
 class AnimatedTabWidget(QTabWidget):
     """Fade the newly selected page into view without replacing Qt's tab behavior."""
 
     def __init__(self) -> None:
         super().__init__()
+        self.setTabBar(AnimatedTabBar())
         self._page_animation: QPropertyAnimation | None = None
         self.currentChanged.connect(self._animate_current_page)
 
@@ -110,9 +195,12 @@ class MainWindow(QMainWindow):
                 font-weight: 600;
             }
             QTabWidget::pane { border: none; }
+            QTabBar#mainTabBar { background: transparent; }
             QTabBar::tab { padding: 10px 18px; margin-right: 3px; border-radius: 7px; }
             QTabBar::tab:selected { background: palette(highlight); color: palette(highlighted-text); }
             QTabBar::tab:hover:!selected { background: palette(alternate-base); }
+            QFrame#tabIndicator { background: palette(highlight); border-radius: 2px; }
+            QFrame#selectionIndicator { border: 2px solid palette(highlight); border-radius: 6px; background: transparent; }
             QSplitter::handle { background: palette(mid); }
             QLabel#summaryLabel { padding: 8px 10px; color: palette(text); }
             QLabel#detailPanel { padding: 0; border: 1px solid palette(mid); border-radius: 9px; background: palette(base); }
@@ -159,7 +247,7 @@ class MainWindow(QMainWindow):
         self._scan_cache()
 
     def _make_table(self, model: PackageFilterModel) -> QTableView:
-        view = QTableView()
+        view = AnimatedSelectionTable()
         view.setObjectName("packageTable")
         view.setModel(model)
         view.setSortingEnabled(True)
@@ -217,7 +305,7 @@ class MainWindow(QMainWindow):
         self.cache_summary.setObjectName("summaryLabel")
         self.cache_cleanup_button = QPushButton()
         self.cache_cleanup_button.clicked.connect(self._request_cache_cleanup)
-        self.cache_view = QTableView()
+        self.cache_view = AnimatedSelectionTable()
         self.cache_view.setModel(self.cache_proxy)
         self.cache_view.setShowGrid(False)
         self.cache_view.setAlternatingRowColors(True)
