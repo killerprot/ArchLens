@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QPen
 from PySide6.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsItem,
     QGraphicsLineItem,
     QGraphicsScene,
-    QGraphicsTextItem,
+    QGraphicsSimpleTextItem,
     QGraphicsView,
     QVBoxLayout,
     QWidget,
@@ -27,10 +27,11 @@ class PackageNode(QGraphicsEllipseItem):
         self.setBrush(QBrush(color))
         self.setPen(QPen(QColor("#7f8caa"), 1.5))
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-        label = QGraphicsTextItem(name, self)
-        label.setDefaultTextColor(QColor("#f2f4f8"))
+        label = QGraphicsSimpleTextItem(name, self)
+        label.setBrush(QBrush(QColor("#f2f4f8")))
         label.setFont(QFont("sans", 9))
         label.setPos(-label.boundingRect().width() / 2, -label.boundingRect().height() / 2)
+        label.setZValue(1)
 
 
 class GraphView(QWidget):
@@ -39,6 +40,7 @@ class GraphView(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.scene = QGraphicsScene(self)
+        self._rebuilding = False
         self.view = QGraphicsView(self.scene)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.view.setBackgroundBrush(QBrush(QColor("#171a21")))
@@ -48,6 +50,8 @@ class GraphView(QWidget):
         self.scene.selectionChanged.connect(self._selection_changed)
 
     def show_package(self, package: Package, graph: DependencyGraph) -> None:
+        self._rebuilding = True
+        self.scene.blockSignals(True)
         self.scene.clear()
         center = QPointF(0, 0)
         nodes: dict[str, PackageNode] = {
@@ -71,6 +75,8 @@ class GraphView(QWidget):
             self.scene.addItem(node)
         self.scene.setSceneRect(QRectF(-480, -360, 960, 720))
         self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        self.scene.blockSignals(False)
+        self._rebuilding = False
 
     def wheelEvent(self, event) -> None:
         factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
@@ -82,6 +88,11 @@ class GraphView(QWidget):
         self.scene.addItem(line)
 
     def _selection_changed(self) -> None:
+        if self._rebuilding:
+            return
+        QTimer.singleShot(0, self._emit_selected)
+
+    def _emit_selected(self) -> None:
         selected = self.scene.selectedItems()
         if selected and isinstance(selected[0], PackageNode):
             self.node_selected.emit(selected[0].package_name)
