@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from archlens.core.models import Package, Reason
-from archlens.infra.source import PackageSource
+from archlens.infra.source import MIN_SYNC_PACKAGES, PackageSource
 
 
 def _fields(path: Path) -> dict[str, tuple[str, ...]]:
@@ -66,6 +66,18 @@ class LocalPacmanSource(PackageSource):
         except (OSError, subprocess.CalledProcessError):
             return None
         return frozenset(line.strip() for line in completed.stdout.splitlines() if line.strip())
+
+    def foreign_names(self) -> frozenset[str] | None:
+        return self._foreign_names()
+
+    def sync_reliable(self) -> bool:
+        try:
+            completed = subprocess.run(
+                [self.pacman, "-Slq"], check=True, capture_output=True, text=True
+            )
+        except (OSError, subprocess.CalledProcessError):
+            return False
+        return len({line for line in completed.stdout.splitlines() if line.strip()}) >= MIN_SYNC_PACKAGES
 
     def load(self) -> tuple[Package, ...]:
         foreign = self._foreign_names()
