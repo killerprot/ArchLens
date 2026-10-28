@@ -5,31 +5,7 @@ from __future__ import annotations
 from collections import deque
 
 from archlens.core.graph import DependencyGraph
-from archlens.core.models import Orphan, Reason
-
-
-def orphans(graph: DependencyGraph) -> tuple[Orphan, ...]:
-    reachable = graph.reachable_from_explicit()
-    optional = graph.optionally_reachable()
-    return tuple(
-        Orphan(package, package.name in optional)
-        for package in graph.packages
-        if package.reason is Reason.DEPENDENCY and package.name not in reachable
-    )
-
-
-def unrequired(graph: DependencyGraph, *, ignore_optional: bool = False) -> frozenset[str]:
-    """Mimic ``pacman -Qdt``; set ``ignore_optional`` for ``-Qdtt``."""
-    hard_required = {name for name, reverse in graph.rdeps.items() if reverse}
-    if ignore_optional:
-        required = hard_required
-    else:
-        required = hard_required | set(graph.optionally_reachable())
-    return frozenset(
-        package.name
-        for package in graph.packages
-        if package.reason is Reason.DEPENDENCY and package.name not in required
-    )
+from archlens.core.models import Reason
 
 
 def explain_why(graph: DependencyGraph, package: str) -> tuple[str, ...] | None:

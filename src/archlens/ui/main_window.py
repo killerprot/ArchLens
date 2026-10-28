@@ -28,12 +28,12 @@ from PySide6.QtWidgets import (
 from archlens.app.cache import CacheCleanupTask, CacheTask
 from archlens.app.removal import DryRunTask, RemovalTask
 from archlens.app.workers import LoadPackagesTask, RemovalEstimateTask
-from archlens.core.analysis import orphans
 from archlens.core.cache_analysis import CachedPackage, cache_total
 from archlens.core.graph import DependencyGraph
 from archlens.core.models import Package
 from archlens.core.protection import protected_packages
 from archlens.core.report import write_report
+from archlens.core.usage import UsageStatus, compute_usage, orphans
 from archlens.infra.config import load_config
 from archlens.infra.pacman_cli import DryRunResult
 from archlens.strings import LANGUAGES, text
@@ -322,6 +322,9 @@ class MainWindow(QMainWindow):
         orphan_layout.setSpacing(10)
         self.orphan_search = QLineEdit()
         self.orphan_search.textChanged.connect(self.orphan_proxy.setFilterFixedString)
+        self.orphan_mode = QComboBox()
+        self.orphan_mode.currentIndexChanged.connect(self._orphan_mode_changed)
+        orphan_layout.addWidget(self.orphan_mode)
         orphan_layout.addWidget(self.orphan_search)
         self.orphan_summary = QLabel()
         self.orphan_summary.setObjectName("summaryLabel")
@@ -414,15 +417,16 @@ class MainWindow(QMainWindow):
     def _loaded(self, packages: tuple[Package, ...], graph: DependencyGraph) -> None:
         self.packages = packages
         self.graph = graph
+        self.usage = compute_usage(graph)
         self.package_model.set_packages(packages)
-        orphan_items = orphans(graph)
-        self.orphan_model.set_packages(tuple(item.package for item in orphan_items))
-        self.orphan_model.set_optional_names(
-            {item.package.name for item in orphan_items if item.optionally_required}
-        )
+        self.orphan_names = set(orphans(graph))
+        self.optional_only_names = {
+            name for name, item in self.usage.items() if item.status is UsageStatus.OPTIONAL_ONLY
+        }
+        self._refresh_orphan_mode()
+        self.orphan_model.set_optional_names(set())
         self.package_view.resizeColumnsToContents()
         self.orphan_view.resizeColumnsToContents()
-        self._update_orphan_summary(orphan_items)
         self.statusBar().showMessage(text("packages_loaded", self.language, count=len(packages)))
         task = RemovalEstimateTask(graph, set(self.config.protected))
         self.estimate_task = task
@@ -435,7 +439,7 @@ class MainWindow(QMainWindow):
         self.package_model.set_estimates(estimates, statuses)
         self.orphan_model.set_estimates(estimates, statuses)
         if self.graph is not None:
-            self._update_orphan_summary(orphans(self.graph))
+            self._update_orphan_summary(tuple(p for p in self.graph.packages if self.usage[p.name].status is UsageStatus.ORPHAN))
 
     def _load_failed(self, error: str) -> None:
         self.statusBar().showMessage(text("load_error", self.language, error=error))
@@ -467,13 +471,13 @@ class MainWindow(QMainWindow):
         self._retranslate()
 
     def _update_orphan_summary(self, orphan_items) -> None:
-        optional = sum(1 for item in orphan_items if item.optionally_required)
+        optional = 0
         safe_items = [
             item
             for item in orphan_items
-            if not item.optionally_required and item.package.name not in self.estimate_statuses
+            if item.name not in self.estimate_statuses
         ]
-        total = sum(item.package.installed_size for item in safe_items)
+        total = sum(item.installed_size for item in safe_items)
         self.orphan_summary.setText(
             text(
                 "orphans_total",
@@ -485,6 +489,17 @@ class MainWindow(QMainWindow):
             )
         )
 
+    def _orphan_mode_changed(self, _index: int) -> None:
+        if self.graph is not None:
+            self._refresh_orphan_mode()
+
+    def _refresh_orphan_mode(self) -> None:
+        names = self.orphan_names if self.orphan_mode.currentIndex() == 0 else self.optional_only_names
+        items = tuple(package for package in self.graph.packages if package.name in names)
+        self.orphan_model.set_packages(items)
+        self.orphan_view.resizeColumnsToContents()
+        self._update_orphan_summary(items)
+
     def _retranslate(self) -> None:
         self.setWindowTitle(text("app_title", self.language))
         self.tabs.setTabText(0, text("tab_packages", self.language))
@@ -493,6 +508,11 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(3, text("tab_graph", self.language))
         self.search.setPlaceholderText(text("search", self.language))
         self.orphan_search.setPlaceholderText(text("search", self.language))
+        self.orphan_mode.clear()
+        self.orphan_mode.addItems([
+            text("orphan_mode_strict", self.language),
+            text("orphan_mode_optional", self.language),
+        ])
         self.cache_search.setPlaceholderText(text("search", self.language))
         self.remove_button.setText(text("remove_selected", self.language))
         self.export_button.setText(text("export", self.language))
@@ -505,7 +525,10 @@ class MainWindow(QMainWindow):
         self.detail.set_language(self.language)
         self.orphan_detail.set_language(self.language)
         if self.graph is not None:
-            self._update_orphan_summary(orphans(self.graph))
+            self._update_orphan_summary(tuple(
+                p for p in self.graph.packages
+                if self.usage[p.name].status is UsageStatus.ORPHAN
+            ))
 
     def _scan_cache(self) -> None:
         task = CacheTask()

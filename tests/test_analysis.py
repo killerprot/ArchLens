@@ -4,11 +4,10 @@ from archlens.core.analysis import (
     blocked_by,
     explain_why,
     freed_size,
-    orphans,
     removal_closure,
-    unrequired,
 )
 from archlens.core.graph import DependencyGraph
+from archlens.core.usage import UsageStatus, compute_usage, optional_only, orphans, unrequired
 from archlens.infra.local_db import LocalPacmanSource
 
 FIXTURE = Path(__file__).parent / "fixtures" / "fake_pacman_db"
@@ -18,18 +17,21 @@ def graph() -> DependencyGraph:
     return DependencyGraph(LocalPacmanSource(FIXTURE, foreign_file=FIXTURE / "foreign.txt").load())
 
 
-def test_orphans_use_reachability_and_flag_optional_packages() -> None:
-    result = {item.package.name: item for item in orphans(graph())}
-    assert {"cycle-a", "cycle-b", "orphan", "optional-orphan", "provider-shared"} <= result.keys()
-    assert result["optional-orphan"].optionally_required is True
-    assert result["orphan"].optionally_required is False
+def test_strict_usage_classifies_hard_and_optional_reverse_edges() -> None:
+    item = graph()
+    usage = compute_usage(item)
+    assert "orphan" in orphans(item)
+    assert "optional-orphan" in optional_only(item)
+    assert usage["optional-orphan"].status is UsageStatus.OPTIONAL_ONLY
+    assert usage["cycle-a"].status is UsageStatus.REQUIRED
+    assert usage["provider-a"].ambiguous is True
 
 
 def test_unrequired_matches_qdt_and_qdtt_semantics() -> None:
     item = graph()
-    assert "optional-orphan" not in unrequired(item)
-    assert "optional-orphan" in unrequired(item, ignore_optional=True)
-    assert "orphan" in unrequired(item)
+    assert "optional-orphan" not in unrequired(item, 1)
+    assert "optional-orphan" in unrequired(item, 2)
+    assert "orphan" in unrequired(item, 1)
 
 
 def test_explain_why_returns_shortest_reverse_chain() -> None:

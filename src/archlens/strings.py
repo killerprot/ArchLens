@@ -6,6 +6,8 @@ TEXT = {
     "app_title": {"en": "ArchLens", "ru": "ArchLens"},
     "tab_packages": {"en": "Packages", "ru": "Пакеты"},
     "tab_orphans": {"en": "Orphans", "ru": "Сироты"},
+    "orphan_mode_strict": {"en": "Strict orphans", "ru": "Строгие сироты"},
+    "orphan_mode_optional": {"en": "Optional-only", "ru": "Только опциональные"},
     "search": {"en": "Search packages...", "ru": "Поиск пакетов..."},
     "name": {"en": "Name", "ru": "Имя"},
     "version": {"en": "Version", "ru": "Версия"},

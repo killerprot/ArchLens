@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 import sys
 
-from archlens.core.analysis import explain_why, freed_size, orphans, removal_closure
+from archlens.core.analysis import explain_why, freed_size, removal_closure
 from archlens.core.graph import DependencyGraph
+from archlens.core.usage import orphans
 from archlens.infra.local_db import LocalPacmanSource
 
 
@@ -29,9 +30,8 @@ def main() -> int:
 
     graph = DependencyGraph(LocalPacmanSource().load())
     if args.command == "orphans":
-        for item in orphans(graph):
-            marker = " optionally-required" if item.optionally_required else ""
-            print(f"{item.package.name}{marker}")
+        for name in orphans(graph):
+            print(name)
     elif args.command == "explain":
         result = explain_why(graph, args.packages[0])
         print(" -> ".join(result) if result else "no explicit root found")
