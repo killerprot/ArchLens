@@ -30,14 +30,14 @@ class PackageTableModel(QAbstractTableModel):
 
     def set_language(self, language: str) -> None:
         self.language = language
-        self.headerDataChanged.emit(Qt.Horizontal, 0, 5)
+        self.headerDataChanged.emit(Qt.Horizontal, 0, 6)
         if self.packages:
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 6))
 
     def _headers(self) -> tuple[str, ...]:
         return tuple(
             text(key, self.language)
-            for key in ("name", "version", "size", "freed", "reason", "date")
+            for key in ("name", "version", "size", "freed", "reason", "date", "source")
         )
 
     def set_packages(self, packages: tuple[Package, ...]) -> None:
@@ -49,12 +49,12 @@ class PackageTableModel(QAbstractTableModel):
         self.freed = estimates
         self.freed_status = statuses
         if self.packages:
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 6))
 
     def set_optional_names(self, names: set[str]) -> None:
         self.optional_names = names
         if self.packages:
-            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 5))
+            self.dataChanged.emit(self.index(0, 0), self.index(len(self.packages) - 1, 6))
 
     def rowCount(self, parent: QModelIndex | None = None) -> int:
         parent = parent or QModelIndex()
@@ -62,7 +62,7 @@ class PackageTableModel(QAbstractTableModel):
 
     def columnCount(self, parent: QModelIndex | None = None) -> int:
         parent = parent or QModelIndex()
-        return 0 if parent.isValid() else 6
+        return 0 if parent.isValid() else 7
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
@@ -91,6 +91,7 @@ class PackageTableModel(QAbstractTableModel):
                 if package.reason is Reason.EXPLICIT
                 else text("dependency", self.language),
                 package.install_date.astimezone().strftime("%Y-%m-%d"),
+                text("source_foreign" if package.is_foreign is True else "source_repo" if package.is_foreign is False else "source_unknown", self.language),
             )
             return values[index.column()]
         if role == Qt.ToolTipRole and index.column() == 3:
@@ -107,6 +108,7 @@ class PackageTableModel(QAbstractTableModel):
                 self.freed.get(package.name, -1),
                 package.reason.value,
                 package.install_date,
+                package.is_foreign,
             )
             return values[index.column()]
         return None

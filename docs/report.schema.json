@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["application", "packages", "orphans", "optional_only"],
+  "properties": {
+    "application": {"const": "ArchLens"},
+    "orphans": {"type": "array", "items": {"type": "string"}},
+    "optional_only": {"type": "array", "items": {"type": "string"}},
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "version", "usage_status", "optional_for", "ambiguous"],
+        "properties": {
+          "name": {"type": "string"},
+          "version": {"type": "string"},
+          "usage_status": {"enum": ["explicit", "required", "optional_only", "orphan"]},
+          "optional_for": {"type": "array", "items": {"type": "string"}},
+          "ambiguous": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from archlens.core.graph import DependencyGraph
+from archlens.core.usage import compute_usage, optional_only, orphans
 
 
 def report_data(
@@ -14,6 +15,7 @@ def report_data(
     estimates: dict[str, int],
     statuses: dict[str, str],
 ) -> dict[str, Any]:
+    usage = compute_usage(graph)
     packages = []
     for package in graph.packages:
         packages.append(
@@ -28,12 +30,20 @@ def report_data(
                 "optdepends": list(package.optdepends),
                 "provides": list(package.provides),
                 "required_by": sorted(graph.rdeps.get(package.name, ())),
+                "optional_for": list(usage[package.name].optional_for),
+                "usage_status": usage[package.name].status.value,
+                "ambiguous": usage[package.name].ambiguous,
                 "is_foreign": package.is_foreign,
                 "freed_estimate": estimates.get(package.name),
                 "status": statuses.get(package.name),
             }
         )
-    return {"application": "ArchLens", "packages": packages}
+    return {
+        "application": "ArchLens",
+        "packages": packages,
+        "orphans": sorted(orphans(graph)),
+        "optional_only": sorted(optional_only(graph)),
+    }
 
 
 def write_report(
