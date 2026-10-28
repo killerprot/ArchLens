@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import time
 
@@ -32,6 +32,8 @@ class AurCache:
             for name, value in data.get("entries", {}).items():
                 if value.get("not_found"):
                     self.entries[name] = CacheEntry(None, int(value["fetched_at"]), True)
+                elif isinstance(value.get("info"), dict):
+                    self.entries[name] = CacheEntry(AurInfo(**value["info"]), int(value["fetched_at"]))
         except (OSError, ValueError, TypeError, KeyError):
             self.entries = {}
 
@@ -64,7 +66,8 @@ class AurCache:
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         data = {"requests": self.requests, "rate_limited_until": self._rate_limited_until, "entries": {
-            name: {"fetched_at": entry.fetched_at, "not_found": entry.not_found}
+            name: {"fetched_at": entry.fetched_at, "not_found": entry.not_found,
+                   "info": asdict(entry.info) if entry.info else None}
             for name, entry in self.entries.items()
         }}
         fd, temporary = tempfile.mkstemp(prefix=".aur-", dir=self.path.parent)
