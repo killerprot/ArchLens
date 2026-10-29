@@ -55,19 +55,23 @@ def write_report(
     output = Path(path)
     data = report_data(graph, estimates, statuses)
     if output.suffix.lower() == ".md":
-        lines = [
+        output.write_text(render_markdown(data), encoding="utf-8")
+    else:
+        output.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def render_markdown(data: dict[str, Any]) -> str:
+    lines = [
             "# ArchLens report",
             "",
             "| Name | Version | Installed size | Reason | Freed estimate | Status |",
             "|---|---|---:|---|---:|---|",
         ]
-        for package in data["packages"]:
-            estimate = package["freed_estimate"]
-            lines.append(
-                f"| {package['name']} | {package['version']} | {package['installed_size']} | "
-                f"{package['reason']} | {estimate if estimate is not None else '—'} | "
-                f"{package['status'] or ''} |"
-            )
-        output.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    else:
-        output.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    for package in data["packages"]:
+        estimate = package["freed_estimate"]
+        lines.append(
+            f"| {package['name']} | {package['version']} | {package['installed_size']} | "
+            f"{package['reason']} | {estimate if estimate is not None else '—'} | "
+            f"{package['status'] or ''} |"
+        )
+    return "\n".join(lines) + "\n"
